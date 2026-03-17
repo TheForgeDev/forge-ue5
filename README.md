@@ -117,9 +117,6 @@ Forge: "InitAbilityActorInfo was also missed in MyCharacter.cpp
 
 Session data is stored locally in `.forge_session.json` — never leaves your machine.
 
-### The "Brain" vs The "Nervous System"
-
-Claude is the reasoning engine — but out-of-the-box LLMs hallucinate UE5 C++ APIs. Forge acts as the nervous system: it provides the **eyes** (Remote Control API), the **hands** (file reading), and the **rulebook** (30 specialized knowledge files) so the LLM never guesses — it references.
 
 ---
 
