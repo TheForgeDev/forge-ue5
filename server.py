@@ -108,6 +108,8 @@ KNOWLEDGE_MAP = {
     "eos":             "UE5_OnlineSubsystem_Guide_v1.0.md",
     "error_handbook":  "UE5_ErrorHandbook_v2.0.md",
     "community":       "UE5_Community_Debug_Guide_v1.0.md",
+    "error_frequency": "UE5_ErrorFrequency_ProactiveGuide_v1.0.md",
+    "proactive":       "UE5_ErrorFrequency_ProactiveGuide_v1.0.md",
 }
 
 def get_knowledge_dir() -> Path:
