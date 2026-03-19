@@ -57,6 +57,17 @@ app = Server("forge-ue5")
 KNOWLEDGE_MAP = {
     "gas":             "UE5_GAS_ErrorGuide_v1.0.md",
     "ability":         "UE5_GAS_ErrorGuide_v1.0.md",
+    "gas_setup":       "UE5_GAS_Setup_Guide_v1.0.md",
+    "gas_advanced":    "UE5_GAS_Advanced_v1.0.md",
+    "ability_task":    "UE5_GAS_Advanced_v1.0.md",
+    "gameplay_effect": "UE5_GAS_Advanced_v1.0.md",
+    "execution_calc":  "UE5_GAS_Advanced_v1.0.md",
+    "gameplay_cue":    "UE5_GAS_Advanced_v1.0.md",
+    "gas_debug":       "UE5_GAS_Debug_v1.0.md",
+    "showdebug":       "UE5_GAS_Debug_v1.0.md",
+    "gas_multiplayer": "UE5_GAS_Multiplayer_Deep_v1.0.md",
+    "prediction":      "UE5_GAS_Multiplayer_Deep_v1.0.md",
+    "desync":          "UE5_GAS_Multiplayer_Deep_v1.0.md",
     "multiplayer":     "UE5_Multiplayer_Knowledge_v1.0.md",
     "network":         "UE5_Multiplayer_Knowledge_v1.0.md",
     "replication":     "UE5_Multiplayer_Knowledge_v1.0.md",
@@ -156,6 +167,17 @@ def get_saved_logs_dir() -> Optional[Path]:
         if logs_dir.exists():
             return logs_dir
     return None
+
+def is_safe_path(base_dir: Path, user_path: Path) -> bool:
+    """Prevent path traversal — ensure user_path stays within base_dir."""
+    try:
+        return str(user_path.resolve()).startswith(str(base_dir.resolve()))
+    except Exception:
+        return False
+
+def sanitize_error(e: Exception) -> str:
+    """Return generic error message — don't leak system paths."""
+    return "Operation failed. Check logs for details."
 
 def parse_log_for_errors(log_content: str) -> dict:
     lines = log_content.split("\n")
@@ -354,7 +376,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 "available_topics": sorted(set(KNOWLEDGE_MAP.keys()))
             }, indent=2))]
 
-        file_path = get_knowledge_dir() / filename
+        knowledge_dir = get_knowledge_dir()
+        file_path = knowledge_dir / filename
+        # Path traversal check for knowledge directory
+        if not is_safe_path(knowledge_dir, file_path):
+            return [TextContent(type="text", text=json.dumps({
+                "error": "Access denied."
+            }, indent=2))]
         if not file_path.exists():
             return [TextContent(type="text", text=json.dumps({
                 "error": f"Knowledge file not found: {filename}",
@@ -363,8 +391,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
         try:
             return [TextContent(type="text", text=file_path.read_text(encoding="utf-8"))]
-        except Exception as e:
-            return [TextContent(type="text", text=json.dumps({"error": str(e)}, indent=2))]
+        except Exception:
+            return [TextContent(type="text", text=json.dumps({
+                "error": f"Could not read knowledge file: {filename}"
+            }, indent=2))]
 
     # ── list_knowledge_topics ─────────────────────────────────────────────
     elif name == "list_knowledge_topics":
@@ -574,16 +604,25 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     if matches:
                         resolved = matches[0]
 
+        # Path traversal check
+        project = find_project_path()
+        if project and is_safe_path(project, resolved) is False:
+            return [TextContent(type="text", text=json.dumps({
+                "error": "Access denied: path is outside project directory."
+            }, indent=2))]
+
         if resolved.exists():
             try:
-                content = resolved.read_text(encoding="utf-8", errors="replace")
+                file_content = resolved.read_text(encoding="utf-8", errors="replace")
                 return [TextContent(type="text", text=json.dumps({
-                    "file": str(resolved),
-                    "line_count": len(content.splitlines()),
-                    "content": content
+                    "file": resolved.name,
+                    "line_count": len(file_content.splitlines()),
+                    "content": file_content
                 }, indent=2))]
-            except Exception as e:
-                return [TextContent(type="text", text=json.dumps({"error": str(e)}, indent=2))]
+            except Exception:
+                return [TextContent(type="text", text=json.dumps({
+                    "error": "Could not read file."
+                }, indent=2))]
 
         return [TextContent(type="text", text=json.dumps({
             "error": f"File not found: {file_path}",
